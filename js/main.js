@@ -134,7 +134,7 @@ async function onData(data, peerId) {
       await handleKeyExchange(data, peerId);
       break;
     case "chat":
-      await handleChatMessage(data);
+      await handleChatMessage(data, peerId);
       break;
     case "close":
       handleRemoteClose(peerId);
@@ -229,9 +229,9 @@ async function handleKeyExchange(data, peerId) {
   }
 }
 
-async function handleChatMessage(data) {
+async function handleChatMessage(data, peerId) {
   try {
-    const senderPeerId = data.senderPeerId;
+    const senderPeerId = peerId || data.senderPeerId;
     const { text, verified } = await crypto.decryptMessage(data.payload, senderPeerId);
     const senderInfo = senderPeerId ? peers.get(senderPeerId) : null;
     const senderName = senderInfo ? senderInfo.codename : "Unknown";
