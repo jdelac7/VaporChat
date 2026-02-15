@@ -101,7 +101,7 @@ export function joinChannel(channelId) {
 
     peer.on("open", (id) => {
       myPeerId = id;
-      const dataConn = peer.connect(creatorPeerId, { reliable: true, serialization: "json" });
+      const dataConn = peer.connect(creatorPeerId, { reliable: true, serialization: "binary" });
 
       dataConn.on("open", () => {
         if (settled) return;
@@ -152,7 +152,7 @@ export function joinChannel(channelId) {
  */
 export function connectToPeer(remotePeerId) {
   if (conns.has(remotePeerId) || !peer || peer.destroyed) return;
-  const dataConn = peer.connect(remotePeerId, { reliable: true, serialization: "json" });
+  const dataConn = peer.connect(remotePeerId, { reliable: true, serialization: "binary" });
   dataConn.on("open", () => {
     conns.set(remotePeerId, dataConn);
     setupConnection(dataConn, remotePeerId);

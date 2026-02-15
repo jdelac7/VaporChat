@@ -15,8 +15,6 @@ let entryOpen = true;
 let sessionStartTime = null;
 let pendingPings = new Map(); // peerId → timestamp
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-const CHUNK_SIZE = 16 * 1024; // 16 KB per chunk (PeerJS JSON channel limit)
-let pendingTransfers = new Map(); // transferId → { chunks: Map<index, string>, total, senderPeerId }
 
 // ── State Machine ──────────────────────────────────────────────
 function transition(newState) {
@@ -139,8 +137,8 @@ async function onData(data, peerId) {
     case "chat":
       await handleChatMessage(data, peerId);
       break;
-    case "file_chunk":
-      await handleFileChunk(data, peerId);
+    case "file":
+      await handleFileMessage(data, peerId);
       break;
     case "close":
       handleRemoteClose(peerId);
@@ -286,22 +284,7 @@ async function sendFile(file) {
     };
 
     const encrypted = await crypto.encryptMessage(JSON.stringify(metadata));
-    const transferId = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    const chunks = [];
-    for (let i = 0; i < encrypted.length; i += CHUNK_SIZE) {
-      chunks.push(encrypted.slice(i, i + CHUNK_SIZE));
-    }
-
-    for (let i = 0; i < chunks.length; i++) {
-      network.send({
-        type: "file_chunk",
-        transferId,
-        index: i,
-        total: chunks.length,
-        data: chunks[i],
-        senderPeerId: network.getMyPeerId(),
-      });
-    }
+    network.send({ type: "file", payload: encrypted, senderPeerId: network.getMyPeerId() });
 
     ui.appendFileMessage("self", metadata, selfCodename);
   } catch (err) {
@@ -309,36 +292,19 @@ async function sendFile(file) {
   }
 }
 
-async function handleFileChunk(data, peerId) {
-  const { transferId, index, total, data: chunkData, senderPeerId } = data;
-  const actualSender = peerId || senderPeerId;
-
-  if (!pendingTransfers.has(transferId)) {
-    pendingTransfers.set(transferId, { chunks: new Map(), total, senderPeerId: actualSender });
-  }
-
-  const transfer = pendingTransfers.get(transferId);
-  transfer.chunks.set(index, chunkData);
-
-  if (transfer.chunks.size === transfer.total) {
-    pendingTransfers.delete(transferId);
-    let encrypted = "";
-    for (let i = 0; i < transfer.total; i++) {
-      encrypted += transfer.chunks.get(i);
+async function handleFileMessage(data, peerId) {
+  try {
+    const senderPeerId = peerId || data.senderPeerId;
+    const { text, verified } = await crypto.decryptMessage(data.payload, senderPeerId);
+    const metadata = JSON.parse(text);
+    const senderInfo = senderPeerId ? peers.get(senderPeerId) : null;
+    const senderName = senderInfo ? senderInfo.codename : "Unknown";
+    ui.appendFileMessage("peer", metadata, senderName);
+    if (!verified) {
+      ui.appendMessage("crypto", "Signature could not be verified for the above file.");
     }
-
-    try {
-      const { text, verified } = await crypto.decryptMessage(encrypted, transfer.senderPeerId);
-      const metadata = JSON.parse(text);
-      const senderInfo = transfer.senderPeerId ? peers.get(transfer.senderPeerId) : null;
-      const senderName = senderInfo ? senderInfo.codename : "Unknown";
-      ui.appendFileMessage("peer", metadata, senderName);
-      if (!verified) {
-        ui.appendMessage("crypto", "Signature could not be verified for the above file.");
-      }
-    } catch (err) {
-      ui.appendMessage("error", "Failed to decrypt file: " + err.message);
-    }
+  } catch (err) {
+    ui.appendMessage("error", "Failed to decrypt file: " + err.message);
   }
 }
 
@@ -628,7 +594,6 @@ function destroySession() {
   shareLink = null;
   sessionStartTime = null;
   pendingPings.clear();
-  pendingTransfers.clear();
   entryOpen = true;
 
   transition("destroyed");
