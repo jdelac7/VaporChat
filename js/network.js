@@ -15,8 +15,9 @@ const PEER_CONFIG = {
 };
 
 let peer = null;
-let conn = null;
-let linkBurned = false;
+let conns = new Map(); // peerId → DataConnection
+let entryOpen = true;
+let myPeerId = null;
 
 /** @type {function|null} */ let onConnectionReady = null;
 /** @type {function|null} */ let onData = null;
@@ -25,6 +26,7 @@ let linkBurned = false;
 
 /**
  * Set event handlers for network events.
+ * Callbacks receive peerId: connectionReady(peerId), data(data, peerId), close(peerId)
  */
 export function setHandlers({ connectionReady, data, close, error }) {
   onConnectionReady = connectionReady || null;
@@ -35,7 +37,7 @@ export function setHandlers({ connectionReady, data, close, error }) {
 
 /**
  * Create a channel (creator flow).
- * Registers as a PeerJS peer with the channel ID and waits for a connection.
+ * Registers as a PeerJS peer with the channel ID and accepts multiple connections.
  * @param {string} channelId
  * @returns {Promise<void>}
  */
@@ -44,26 +46,21 @@ export function createChannel(channelId) {
     const peerId = CHANNEL_PREFIX + channelId;
     peer = new Peer(peerId, PEER_CONFIG);
 
-    peer.on("open", () => {
+    peer.on("open", (id) => {
+      myPeerId = id;
       resolve();
     });
 
     peer.on("connection", (dataConn) => {
-      if (linkBurned) {
-        // Reject subsequent connections
+      if (!entryOpen) {
         dataConn.close();
         return;
       }
 
-      // Burn the link: accept first connection only
-      linkBurned = true;
-      conn = dataConn;
-
-      // Wait for the data channel to actually be open before wiring handlers
-      conn.on("open", () => {
-        setupConnection(conn);
-        // Disconnect from signaling server to prevent further discovery
-        peer.disconnect();
+      dataConn.on("open", () => {
+        const remotePeerId = dataConn.peer;
+        conns.set(remotePeerId, dataConn);
+        setupConnection(dataConn, remotePeerId);
       });
     });
 
@@ -73,10 +70,7 @@ export function createChannel(channelId) {
     });
 
     peer.on("disconnected", () => {
-      // Reconnect to signaling server if the link hasn't been burned yet.
-      // The free PeerJS cloud server can drop idle WebSocket connections,
-      // which unregisters the peer and makes the channel unreachable.
-      if (!linkBurned && peer && !peer.destroyed) {
+      if (entryOpen && peer && !peer.destroyed) {
         peer.reconnect();
       }
     });
@@ -85,14 +79,14 @@ export function createChannel(channelId) {
 
 /**
  * Join a channel (joiner flow).
- * Connects to the creator's peer.
+ * Connects to the creator's peer. Stays on signaling server for mesh connections.
  * @param {string} channelId
  * @returns {Promise<void>}
  */
 export function joinChannel(channelId) {
   return new Promise((resolve, reject) => {
     let settled = false;
-    const peerId = CHANNEL_PREFIX + channelId;
+    const creatorPeerId = CHANNEL_PREFIX + channelId;
     peer = new Peer(undefined, PEER_CONFIG);
 
     const timeout = setTimeout(() => {
@@ -105,25 +99,34 @@ export function joinChannel(channelId) {
       }
     }, JOIN_TIMEOUT_MS);
 
-    peer.on("open", () => {
-      conn = peer.connect(peerId, { reliable: true, serialization: "json" });
+    peer.on("open", (id) => {
+      myPeerId = id;
+      const dataConn = peer.connect(creatorPeerId, { reliable: true, serialization: "json" });
 
-      conn.on("open", () => {
+      dataConn.on("open", () => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
-        // Disconnect joiner from signaling server too
-        peer.disconnect();
-        setupConnection(conn);
+        conns.set(creatorPeerId, dataConn);
+        setupConnection(dataConn, creatorPeerId);
         resolve();
       });
 
-      conn.on("error", (err) => {
+      dataConn.on("error", (err) => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
         if (onError) onError(err);
         reject(err);
+      });
+    });
+
+    // Accept incoming mesh connections from other peers
+    peer.on("connection", (dataConn) => {
+      dataConn.on("open", () => {
+        const remotePeerId = dataConn.peer;
+        conns.set(remotePeerId, dataConn);
+        setupConnection(dataConn, remotePeerId);
       });
     });
 
@@ -134,57 +137,128 @@ export function joinChannel(channelId) {
       if (onError) onError(err);
       reject(err);
     });
+
+    peer.on("disconnected", () => {
+      if (entryOpen && peer && !peer.destroyed) {
+        peer.reconnect();
+      }
+    });
+  });
+}
+
+/**
+ * Connect to another peer for mesh topology.
+ * @param {string} remotePeerId
+ */
+export function connectToPeer(remotePeerId) {
+  if (conns.has(remotePeerId) || !peer || peer.destroyed) return;
+  const dataConn = peer.connect(remotePeerId, { reliable: true, serialization: "json" });
+  dataConn.on("open", () => {
+    conns.set(remotePeerId, dataConn);
+    setupConnection(dataConn, remotePeerId);
+  });
+  dataConn.on("error", (err) => {
+    if (onError) onError(err);
   });
 }
 
 /**
  * Wire up data/close handlers on an established connection.
+ * @param {DataConnection} connection
+ * @param {string} peerId
  */
-function setupConnection(connection) {
+function setupConnection(connection, peerId) {
   connection.on("data", (data) => {
-    if (onData) onData(data);
+    if (onData) onData(data, peerId);
   });
 
   connection.on("close", () => {
-    if (onClose) onClose();
+    conns.delete(peerId);
+    if (onClose) onClose(peerId);
   });
 
   connection.on("error", (err) => {
     if (onError) onError(err);
   });
 
-  if (onConnectionReady) onConnectionReady();
+  if (onConnectionReady) onConnectionReady(peerId);
 }
 
 /**
- * Send data over the connection.
+ * Send data to a specific peer.
+ * @param {string} peerId
+ * @param {object} data
+ */
+export function sendTo(peerId, data) {
+  const c = conns.get(peerId);
+  if (c && c.open) {
+    c.send(data);
+  }
+}
+
+/**
+ * Send data to all connected peers, optionally excluding one.
+ * @param {object} data
+ * @param {string} [excludePeerId]
+ */
+export function broadcast(data, excludePeerId) {
+  for (const [peerId, c] of conns) {
+    if (peerId !== excludePeerId && c.open) {
+      c.send(data);
+    }
+  }
+}
+
+/**
+ * Send data to all connected peers (alias for broadcast with no exclusion).
  * @param {object} data
  */
 export function send(data) {
-  if (conn && conn.open) {
-    conn.send(data);
+  broadcast(data);
+}
+
+/**
+ * Close entry — no more new peers can join.
+ * Disconnects from signaling server.
+ */
+export function closeEntry() {
+  entryOpen = false;
+  if (peer && !peer.destroyed && !peer.disconnected) {
+    peer.disconnect();
   }
 }
 
 /**
- * Close the connection and destroy the peer.
+ * Get this peer's PeerJS ID.
+ * @returns {string|null}
+ */
+export function getMyPeerId() {
+  return myPeerId;
+}
+
+/**
+ * Close all connections and destroy the peer.
  */
 export function destroy() {
-  if (conn) {
-    try { conn.close(); } catch {}
+  for (const [, c] of conns) {
+    try { c.close(); } catch {}
   }
+  conns.clear();
   if (peer) {
     try { peer.destroy(); } catch {}
   }
-  conn = null;
   peer = null;
-  linkBurned = false;
+  myPeerId = null;
+  entryOpen = true;
 }
 
 /**
- * Check if the connection is currently open.
+ * Check if any connection is currently open.
  * @returns {boolean}
  */
 export function isConnected() {
-  return conn !== null && conn.open;
+  for (const [, c] of conns) {
+    if (c.open) return true;
+  }
+  return false;
 }

@@ -58,22 +58,38 @@ export function showShareLink(link) {
  * Copy text to clipboard and flash the copy button.
  */
 export function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
+  const onSuccess = () => {
     els.btnCopy.textContent = "[ COPIED ]";
     els.btnCopy.classList.add("copied");
     setTimeout(() => {
       els.btnCopy.textContent = "[ COPY LINK ]";
       els.btnCopy.classList.remove("copied");
     }, 2000);
-  });
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onSuccess);
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    onSuccess();
+  }
 }
 
 /**
- * Update the chat status bar with both codenames.
+ * Update the chat status bar with self and peer codenames.
+ * @param {string} selfCodename
+ * @param {string[]} peerNames array of peer codenames
  */
-export function updateStatusBar(selfCodename, peerCodename) {
+export function updateStatusBar(selfCodename, peerNames) {
   els.statusSelf.textContent = selfCodename;
-  els.statusPeer.textContent = peerCodename;
+  els.statusPeer.textContent = peerNames.join(", ");
 }
 
 /**

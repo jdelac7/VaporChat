@@ -7,17 +7,27 @@ import * as network from "./network.js";
 // ── Session State ──────────────────────────────────────────────
 let state = "landing"; // landing | waiting | chat | destroyed | error
 let selfCodename = null;
-let peerCodename = null;
+let peers = new Map(); // peerId → { codename, connected }
 let channelId = null;
 let shareLink = null;
 let isCreator = false;
+let entryOpen = true;
 let sessionStartTime = null;
-let pendingPingTimestamp = null;
+let pendingPings = new Map(); // peerId → timestamp
 
 // ── State Machine ──────────────────────────────────────────────
 function transition(newState) {
   state = newState;
   ui.showScreen(newState);
+}
+
+// ── Helper: get all peer codenames ─────────────────────────────
+function getPeerNames() {
+  return Array.from(peers.values()).map(p => p.codename);
+}
+
+function refreshStatusBar() {
+  ui.updateStatusBar(selfCodename, getPeerNames());
 }
 
 // ── Creator Flow ───────────────────────────────────────────────
@@ -86,7 +96,7 @@ async function joinChannel(joinChannelId) {
 
     let msg;
     if (err.type === "peer-unavailable") {
-      msg = "This channel link has already been used or has expired. Each link can only be used once.";
+      msg = "This channel is no longer active or entry has been closed.";
     } else if (err.type === "request-timeout") {
       msg = "Connection timed out. The channel may no longer be active, or the peer may be behind a restrictive firewall.";
     } else {
@@ -107,50 +117,55 @@ function setupNetworkHandlers() {
   });
 }
 
-function onConnectionReady() {
-  // Send key exchange immediately
-  network.send({
+function onConnectionReady(peerId) {
+  // Send key exchange to the specific peer
+  network.sendTo(peerId, {
     type: "key_exchange",
     codename: selfCodename,
     publicKey: crypto.getPublicKey(),
   });
 }
 
-async function onData(data) {
+async function onData(data, peerId) {
   if (!data || !data.type) return;
 
   switch (data.type) {
     case "key_exchange":
-      await handleKeyExchange(data);
+      await handleKeyExchange(data, peerId);
       break;
     case "chat":
       await handleChatMessage(data);
       break;
     case "close":
-      handleRemoteClose();
+      handleRemoteClose(peerId);
       break;
     case "clear":
       ui.clearMessages();
       ui.appendMessage("system", "Chat log cleared by peer.");
       break;
     case "ping":
-      network.send({ type: "pong", timestamp: data.timestamp });
+      network.sendTo(peerId, { type: "pong", timestamp: data.timestamp });
       break;
     case "pong":
-      if (pendingPingTimestamp && data.timestamp === pendingPingTimestamp) {
-        const rtt = Date.now() - pendingPingTimestamp;
-        ui.appendMessage("system", `Pong from ${peerCodename || "peer"}: ${rtt}ms RTT`);
-        pendingPingTimestamp = null;
-      }
+      handlePong(data, peerId);
+      break;
+    case "peer_list":
+      await handlePeerList(data);
+      break;
+    case "peer_joined":
+      await handlePeerJoined(data);
+      break;
+    case "peer_left":
+      handlePeerLeft(data);
+      break;
+    case "entry_closed":
+      handleEntryClosed();
       break;
   }
 }
 
-async function handleKeyExchange(data) {
+async function handleKeyExchange(data, peerId) {
   try {
-    // Reject key exchange if already completed (prevents mid-session key swap)
-    if (state === "chat") return;
-
     // Validate codename is a reasonable string
     if (typeof data.codename !== "string" || data.codename.length === 0 || data.codename.length > 100) {
       throw new Error("Invalid codename received");
@@ -159,21 +174,56 @@ async function handleKeyExchange(data) {
       throw new Error("Invalid public key format");
     }
 
-    peerCodename = data.codename;
-    await crypto.importPeerKey(data.publicKey);
+    // Idempotent: skip if we already have this peer fully set up
+    if (peers.has(peerId) && peers.get(peerId).connected) return;
 
-    // Transition to chat
-    sessionStartTime = Date.now();
-    ui.updateStatusBar(selfCodename, peerCodename);
-    ui.setConnectionStatus(true);
-    transition("chat");
+    const isNewPeer = !peers.has(peerId);
+    peers.set(peerId, { codename: data.codename, connected: true });
+    await crypto.importPeerKey(peerId, data.publicKey);
 
-    ui.appendMessage("crypto", "Key exchange complete. E2E encryption active.");
-    ui.appendMessage("system", `${peerCodename} has joined the channel.`);
-    ui.setInputEnabled(true);
+    // If creator and this is a new peer, send peer_list to new joiner and broadcast peer_joined to existing peers
+    if (isCreator && isNewPeer) {
+      // Send peer_list to the new joiner (all existing peers except the new one)
+      const peerList = [];
+      for (const [pid, pinfo] of peers) {
+        if (pid !== peerId && pinfo.connected) {
+          peerList.push({
+            peerId: pid,
+            codename: pinfo.codename,
+            publicKey: crypto.getPeerArmoredKey(pid),
+          });
+        }
+      }
+      if (peerList.length > 0) {
+        network.sendTo(peerId, { type: "peer_list", peers: peerList });
+      }
 
-    // Enable beforeunload warning
-    window.addEventListener("beforeunload", beforeUnloadHandler);
+      // Broadcast peer_joined to existing peers (exclude the new joiner)
+      network.broadcast({
+        type: "peer_joined",
+        peerId: peerId,
+        codename: data.codename,
+        publicKey: data.publicKey,
+      }, peerId);
+    }
+
+    // Transition to chat on first key exchange
+    if (state !== "chat") {
+      sessionStartTime = Date.now();
+      refreshStatusBar();
+      ui.setConnectionStatus(true);
+      transition("chat");
+      ui.appendMessage("crypto", "Key exchange complete. E2E encryption active.");
+      ui.setInputEnabled(true);
+      window.addEventListener("beforeunload", beforeUnloadHandler);
+    } else {
+      // Already in chat — just update the status bar
+      refreshStatusBar();
+    }
+
+    if (isNewPeer) {
+      ui.appendMessage("system", `${data.codename} has joined the channel.`);
+    }
   } catch (err) {
     ui.appendMessage("error", "Key exchange failed: " + err.message);
   }
@@ -181,8 +231,11 @@ async function handleKeyExchange(data) {
 
 async function handleChatMessage(data) {
   try {
-    const { text, verified } = await crypto.decryptMessage(data.payload);
-    ui.appendMessage("peer", text, peerCodename);
+    const senderPeerId = data.senderPeerId;
+    const { text, verified } = await crypto.decryptMessage(data.payload, senderPeerId);
+    const senderInfo = senderPeerId ? peers.get(senderPeerId) : null;
+    const senderName = senderInfo ? senderInfo.codename : "Unknown";
+    ui.appendMessage("peer", text, senderName);
     if (!verified) {
       ui.appendMessage("crypto", "Signature could not be verified for the above message.");
     }
@@ -191,19 +244,87 @@ async function handleChatMessage(data) {
   }
 }
 
-function handleRemoteClose() {
-  ui.appendMessage("system", `${peerCodename || "Peer"} closed the channel.`);
+async function handlePeerList(data) {
+  if (!data.peers || !Array.isArray(data.peers)) return;
+  for (const p of data.peers) {
+    if (!peers.has(p.peerId)) {
+      peers.set(p.peerId, { codename: p.codename, connected: false });
+    }
+    if (!crypto.hasPeerKey(p.peerId)) {
+      await crypto.importPeerKey(p.peerId, p.publicKey);
+    }
+    // Initiate mesh connection to each existing peer
+    network.connectToPeer(p.peerId);
+  }
+}
+
+async function handlePeerJoined(data) {
+  // Pre-import the new peer's key so we're ready when they connect to us
+  if (!peers.has(data.peerId)) {
+    peers.set(data.peerId, { codename: data.codename, connected: false });
+  }
+  if (!crypto.hasPeerKey(data.peerId)) {
+    await crypto.importPeerKey(data.peerId, data.publicKey);
+  }
+}
+
+function handlePeerLeft(data) {
+  const peerInfo = peers.get(data.peerId);
+  const name = peerInfo ? peerInfo.codename : data.codename;
+  peers.delete(data.peerId);
+  crypto.removePeerKey(data.peerId);
+  refreshStatusBar();
+  ui.appendMessage("system", `${name} has left the channel.`);
+}
+
+function handleEntryClosed() {
+  entryOpen = false;
+  network.closeEntry();
+  ui.appendMessage("system", "Entry has been closed. No new peers can join.");
+}
+
+function handleRemoteClose(peerId) {
+  const peerInfo = peers.get(peerId);
+  const name = peerInfo ? peerInfo.codename : "Peer";
+  ui.appendMessage("system", `${name} closed the channel.`);
   ui.setInputEnabled(false);
   ui.setConnectionStatus(false);
   setTimeout(() => destroySession(), 1500);
 }
 
-function onPeerDisconnect() {
-  if (state === "chat") {
-    ui.appendMessage("system", `${peerCodename || "Peer"} disconnected.`);
+function onPeerDisconnect(peerId) {
+  if (state !== "chat") return;
+
+  const peerInfo = peers.get(peerId);
+  const name = peerInfo ? peerInfo.codename : "Peer";
+  peers.delete(peerId);
+  crypto.removePeerKey(peerId);
+  refreshStatusBar();
+  ui.appendMessage("system", `${name} disconnected.`);
+
+  // Creator broadcasts peer_left to remaining peers
+  if (isCreator) {
+    network.broadcast({ type: "peer_left", peerId, codename: name });
+  }
+
+  // If no peers remain and not the creator, destroy the session
+  if (peers.size === 0 && !isCreator) {
     ui.setInputEnabled(false);
     ui.setConnectionStatus(false);
     setTimeout(() => destroySession(), 1500);
+  } else if (peers.size === 0 && isCreator) {
+    ui.setConnectionStatus(false);
+  }
+}
+
+function handlePong(data, peerId) {
+  const pingTs = pendingPings.get(peerId);
+  if (pingTs && data.timestamp === pingTs) {
+    const rtt = Date.now() - pingTs;
+    const peerInfo = peers.get(peerId);
+    const name = peerInfo ? peerInfo.codename : peerId;
+    ui.appendMessage("system", `Pong from ${name}: ${rtt}ms RTT`);
+    pendingPings.delete(peerId);
   }
 }
 
@@ -227,7 +348,7 @@ async function sendMessage(text) {
 
   try {
     const encrypted = await crypto.encryptMessage(text);
-    network.send({ type: "chat", payload: encrypted });
+    network.send({ type: "chat", payload: encrypted, senderPeerId: network.getMyPeerId() });
     ui.appendMessage("self", text, selfCodename);
   } catch (err) {
     ui.appendMessage("error", "Failed to encrypt message: " + err.message);
@@ -242,6 +363,7 @@ const commands = {
   "/whoami": cmdWhoami,
   "/status": cmdStatus,
   "/ping": cmdPing,
+  "/close_entry": cmdCloseEntry,
 };
 
 function handleCommand(input) {
@@ -257,18 +379,19 @@ function handleCommand(input) {
 function cmdHelp() {
   const lines = [
     "Available commands:",
-    "  /help   — Show this help message",
-    "  /close  — Destroy the channel and end the session",
-    "  /clear  — Clear the message log",
-    "  /whoami — Show your codename, role, and key fingerprint",
-    "  /status — Show session info (peer, uptime, encryption)",
-    "  /ping   — Measure round-trip time to peer",
+    "  /help        — Show this help message",
+    "  /close       — Destroy the channel and end the session",
+    "  /close_entry — Lock the room (creator only) — no new peers can join",
+    "  /clear       — Clear the message log",
+    "  /whoami      — Show your codename, role, and key fingerprint",
+    "  /status      — Show session info (peers, uptime, encryption)",
+    "  /ping        — Measure round-trip time to all peers",
   ];
   ui.appendMessage("system", lines.join("\n"));
 }
 
 function cmdClose() {
-  network.send({ type: "close" });
+  network.broadcast({ type: "close" });
   ui.appendMessage("system", "You closed the channel.");
   ui.setInputEnabled(false);
   setTimeout(() => destroySession(), 500);
@@ -292,7 +415,8 @@ function cmdWhoami() {
 }
 
 function cmdStatus() {
-  const peer = peerCodename || "not connected";
+  const peerNames = getPeerNames();
+  const peerDisplay = peerNames.length > 0 ? peerNames.join(", ") : "no peers connected";
   let uptime = "unknown";
   if (sessionStartTime) {
     const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
@@ -301,7 +425,8 @@ function cmdStatus() {
     uptime = `${mins}m ${secs}s`;
   }
   const lines = [
-    `Peer: ${peer}`,
+    `Peers (${peerNames.length}): ${peerDisplay}`,
+    `Entry: ${entryOpen ? "open" : "closed"}`,
     `Uptime: ${uptime}`,
     `Encryption: OpenPGP (ECC curve25519)`,
   ];
@@ -310,12 +435,30 @@ function cmdStatus() {
 
 function cmdPing() {
   if (!network.isConnected()) {
-    ui.appendMessage("system", "Not connected to a peer.");
+    ui.appendMessage("system", "Not connected to any peers.");
     return;
   }
-  pendingPingTimestamp = Date.now();
-  network.send({ type: "ping", timestamp: pendingPingTimestamp });
-  ui.appendMessage("system", "Ping sent...");
+  const now = Date.now();
+  for (const [peerId] of peers) {
+    pendingPings.set(peerId, now);
+    network.sendTo(peerId, { type: "ping", timestamp: now });
+  }
+  ui.appendMessage("system", "Ping sent to all peers...");
+}
+
+function cmdCloseEntry() {
+  if (!isCreator) {
+    ui.appendMessage("system", "Only the channel creator can close entry.");
+    return;
+  }
+  if (!entryOpen) {
+    ui.appendMessage("system", "Entry is already closed.");
+    return;
+  }
+  entryOpen = false;
+  network.closeEntry();
+  network.broadcast({ type: "entry_closed" });
+  ui.appendMessage("system", "Entry closed. No new peers can join this channel.");
 }
 
 // ── Session Cleanup ────────────────────────────────────────────
@@ -329,11 +472,12 @@ function destroySession() {
   ui.setInputEnabled(false);
 
   selfCodename = null;
-  peerCodename = null;
+  peers.clear();
   channelId = null;
   shareLink = null;
   sessionStartTime = null;
-  pendingPingTimestamp = null;
+  pendingPings.clear();
+  entryOpen = true;
 
   transition("destroyed");
 }
