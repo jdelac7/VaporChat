@@ -160,6 +160,21 @@ body::after {
   display: block;
 }
 
+.github-link {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: color 0.15s ease;
+}
+
+.github-link:hover {
+  color: var(--text);
+}
+
 /* ── Waiting Screen ───────────────────────────────────────────── */
 #screen-waiting {
   justify-content: center;
