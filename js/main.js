@@ -84,9 +84,14 @@ async function joinChannel(joinChannelId) {
     els.btnCreate.disabled = false;
     els.btnCreate.textContent = "CREATE SECURE CHANNEL";
 
-    const msg = err.type === "peer-unavailable"
-      ? "This channel link has already been used or has expired. Each link can only be used once."
-      : "Failed to connect: " + (err.message || "Network error. The peer may be behind a restrictive firewall.");
+    let msg;
+    if (err.type === "peer-unavailable") {
+      msg = "This channel link has already been used or has expired. Each link can only be used once.";
+    } else if (err.type === "request-timeout") {
+      msg = "Connection timed out. The channel may no longer be active, or the peer may be behind a restrictive firewall.";
+    } else {
+      msg = "Failed to connect: " + (err.message || "Network error. The peer may be behind a restrictive firewall.");
+    }
 
     ui.showError(msg);
   }
