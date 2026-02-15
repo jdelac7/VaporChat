@@ -20,7 +20,9 @@ const els = {
   selfCodename:  $("#self-codename"),
   shareLink:     $("#share-link"),
   statusSelf:    $("#status-self"),
-  statusPeer:    $("#status-peer"),
+  statusPeerWrap:    $("#status-peer-wrap"),
+  statusPeerSummary: $("#status-peer-summary"),
+  statusPeerList:    $("#status-peer-list"),
   statusDot:     $("#status-dot"),
   statusEntry:   $("#status-entry"),
   messageLog:    $("#message-log"),
@@ -85,12 +87,28 @@ export function copyToClipboard(text) {
 
 /**
  * Update the chat status bar with self and peer codenames.
+ * Shows a summary (first name + count) that expands on click.
  * @param {string} selfCodename
  * @param {string[]} peerNames array of peer codenames
  */
 export function updateStatusBar(selfCodename, peerNames) {
   els.statusSelf.textContent = selfCodename;
-  els.statusPeer.textContent = peerNames.join(", ");
+
+  if (peerNames.length === 0) {
+    els.statusPeerSummary.textContent = "no peers";
+  } else if (peerNames.length === 1) {
+    els.statusPeerSummary.textContent = peerNames[0];
+  } else {
+    els.statusPeerSummary.textContent = `${peerNames[0]} +${peerNames.length - 1}`;
+  }
+
+  els.statusPeerList.innerHTML = "";
+  for (const name of peerNames) {
+    const div = document.createElement("div");
+    div.className = "status-peer-item";
+    div.textContent = name;
+    els.statusPeerList.appendChild(div);
+  }
 }
 
 /**
@@ -201,3 +219,9 @@ export function clearMessages() {
 export function getElements() {
   return els;
 }
+
+// ── Peer list expand/collapse toggle ───────────────────────────
+els.statusPeerWrap.addEventListener("click", () => {
+  els.statusPeerList.classList.toggle("hidden");
+  els.statusPeerWrap.classList.toggle("expanded");
+});

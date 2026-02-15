@@ -164,6 +164,9 @@ async function onData(data, peerId) {
     case "entry_opened":
       handleEntryOpened();
       break;
+    case "leave":
+      handlePeerLeave(data, peerId);
+      break;
   }
 }
 
@@ -292,6 +295,28 @@ function handleEntryOpened() {
   network.openEntry();
   ui.setEntryStatus(true);
   ui.appendMessage("system", "Entry has been reopened. New peers can join.");
+}
+
+function handlePeerLeave(data, peerId) {
+  if (state !== "chat") return;
+  const peerInfo = peers.get(peerId);
+  const name = peerInfo ? peerInfo.codename : data.codename || "Peer";
+  peers.delete(peerId);
+  crypto.removePeerKey(peerId);
+  refreshStatusBar();
+  ui.appendMessage("system", `${name} left the channel.`);
+
+  if (isCreator) {
+    network.broadcast({ type: "peer_left", peerId, codename: name });
+  }
+
+  if (peers.size === 0 && !isCreator) {
+    ui.setInputEnabled(false);
+    ui.setConnectionStatus(false);
+    setTimeout(() => destroySession(), 1500);
+  } else if (peers.size === 0 && isCreator) {
+    ui.setConnectionStatus(false);
+  }
 }
 
 function handleRemoteClose(peerId) {
@@ -526,6 +551,10 @@ function returnToLanding() {
 }
 
 function beforeUnloadHandler(e) {
+  // Notify peers before the tab closes
+  try {
+    network.broadcast({ type: "leave", codename: selfCodename });
+  } catch {}
   e.preventDefault();
   e.returnValue = "";
 }
