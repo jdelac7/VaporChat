@@ -106,7 +106,7 @@ export function joinChannel(channelId) {
     }, JOIN_TIMEOUT_MS);
 
     peer.on("open", () => {
-      conn = peer.connect(peerId, { reliable: true });
+      conn = peer.connect(peerId, { reliable: true, serialization: "json" });
 
       conn.on("open", () => {
         if (settled) return;
