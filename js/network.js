@@ -229,6 +229,17 @@ export function closeEntry() {
 }
 
 /**
+ * Open entry — allow new peers to join again.
+ * Reconnects to signaling server.
+ */
+export function openEntry() {
+  entryOpen = true;
+  if (peer && !peer.destroyed && peer.disconnected) {
+    peer.reconnect();
+  }
+}
+
+/**
  * Get this peer's PeerJS ID.
  * @returns {string|null}
  */

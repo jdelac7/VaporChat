@@ -22,6 +22,7 @@ const els = {
   statusSelf:    $("#status-self"),
   statusPeer:    $("#status-peer"),
   statusDot:     $("#status-dot"),
+  statusEntry:   $("#status-entry"),
   messageLog:    $("#message-log"),
   chatInput:     $("#chat-input"),
   errorMessage:  $("#error-message"),
@@ -98,6 +99,15 @@ export function updateStatusBar(selfCodename, peerNames) {
  */
 export function setConnectionStatus(connected) {
   els.statusDot.classList.toggle("disconnected", !connected);
+}
+
+/**
+ * Update the entry status indicator.
+ * @param {boolean} open
+ */
+export function setEntryStatus(open) {
+  els.statusEntry.textContent = open ? "entry: open" : "entry: closed";
+  els.statusEntry.classList.toggle("entry-closed", !open);
 }
 
 /**

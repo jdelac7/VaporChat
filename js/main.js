@@ -161,6 +161,9 @@ async function onData(data, peerId) {
     case "entry_closed":
       handleEntryClosed();
       break;
+    case "entry_opened":
+      handleEntryOpened();
+      break;
   }
 }
 
@@ -280,7 +283,15 @@ function handlePeerLeft(data) {
 function handleEntryClosed() {
   entryOpen = false;
   network.closeEntry();
+  ui.setEntryStatus(false);
   ui.appendMessage("system", "Entry has been closed. No new peers can join.");
+}
+
+function handleEntryOpened() {
+  entryOpen = true;
+  network.openEntry();
+  ui.setEntryStatus(true);
+  ui.appendMessage("system", "Entry has been reopened. New peers can join.");
 }
 
 function handleRemoteClose(peerId) {
@@ -364,6 +375,7 @@ const commands = {
   "/status": cmdStatus,
   "/ping": cmdPing,
   "/close_entry": cmdCloseEntry,
+  "/open_entry": cmdOpenEntry,
 };
 
 function handleCommand(input) {
@@ -382,6 +394,7 @@ function cmdHelp() {
     "  /help        — Show this help message",
     "  /close       — Destroy the channel and end the session",
     "  /close_entry — Lock the room (creator only) — no new peers can join",
+    "  /open_entry  — Reopen the room (creator only) — allow new peers to join",
     "  /clear       — Clear the message log",
     "  /whoami      — Show your codename, role, and key fingerprint",
     "  /status      — Show session info (peers, uptime, encryption)",
@@ -457,8 +470,25 @@ function cmdCloseEntry() {
   }
   entryOpen = false;
   network.closeEntry();
+  ui.setEntryStatus(false);
   network.broadcast({ type: "entry_closed" });
   ui.appendMessage("system", "Entry closed. No new peers can join this channel.");
+}
+
+function cmdOpenEntry() {
+  if (!isCreator) {
+    ui.appendMessage("system", "Only the channel creator can open entry.");
+    return;
+  }
+  if (entryOpen) {
+    ui.appendMessage("system", "Entry is already open.");
+    return;
+  }
+  entryOpen = true;
+  network.openEntry();
+  ui.setEntryStatus(true);
+  network.broadcast({ type: "entry_opened" });
+  ui.appendMessage("system", "Entry reopened. New peers can join this channel.");
 }
 
 // ── Session Cleanup ────────────────────────────────────────────

@@ -300,6 +300,15 @@ body::after {
   box-shadow: 0 0 6px var(--red);
 }
 
+.status-entry {
+  color: var(--green-dim);
+  margin-left: auto;
+}
+
+.status-entry.entry-closed {
+  color: var(--red-dim);
+}
+
 .message-log {
   flex: 1;
   overflow-y: auto;
