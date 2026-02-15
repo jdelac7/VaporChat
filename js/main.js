@@ -14,6 +14,7 @@ let isCreator = false;
 let entryOpen = true;
 let sessionStartTime = null;
 let pendingPings = new Map(); // peerId → timestamp
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4 MB
 
 // ── State Machine ──────────────────────────────────────────────
 function transition(newState) {
@@ -136,6 +137,9 @@ async function onData(data, peerId) {
     case "chat":
       await handleChatMessage(data, peerId);
       break;
+    case "file":
+      await handleFileMessage(data, peerId);
+      break;
     case "close":
       handleRemoteClose(peerId);
       break;
@@ -247,6 +251,59 @@ async function handleChatMessage(data, peerId) {
     }
   } catch (err) {
     ui.appendMessage("error", "Failed to decrypt message: " + err.message);
+  }
+}
+
+// ── File Transfer ───────────────────────────────────────────────
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // dataURL format: "data:<mime>;base64,<data>"
+      const base64 = reader.result.split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function sendFile(file) {
+  if (file.size > MAX_FILE_SIZE) {
+    ui.appendMessage("error", `File too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum is 4 MB.`);
+    return;
+  }
+
+  try {
+    const base64Data = await readFileAsBase64(file);
+    const metadata = {
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      fileSize: file.size,
+      data: base64Data,
+    };
+
+    const encrypted = await crypto.encryptMessage(JSON.stringify(metadata));
+    network.send({ type: "file", payload: encrypted, senderPeerId: network.getMyPeerId() });
+    ui.appendFileMessage("self", metadata, selfCodename);
+  } catch (err) {
+    ui.appendMessage("error", "Failed to send file: " + err.message);
+  }
+}
+
+async function handleFileMessage(data, peerId) {
+  try {
+    const senderPeerId = peerId || data.senderPeerId;
+    const { text, verified } = await crypto.decryptMessage(data.payload, senderPeerId);
+    const metadata = JSON.parse(text);
+    const senderInfo = senderPeerId ? peers.get(senderPeerId) : null;
+    const senderName = senderInfo ? senderInfo.codename : "Unknown";
+    ui.appendFileMessage("peer", metadata, senderName);
+    if (!verified) {
+      ui.appendMessage("crypto", "Signature could not be verified for the above file.");
+    }
+  } catch (err) {
+    ui.appendMessage("error", "Failed to decrypt file: " + err.message);
   }
 }
 
@@ -424,6 +481,10 @@ function cmdHelp() {
     "  /whoami      — Show your codename, role, and key fingerprint",
     "  /status      — Show session info (peers, uptime, encryption)",
     "  /ping        — Measure round-trip time to all peers",
+    "",
+    "File sharing:",
+    "  [+] button   — Attach and send a file (max 4 MB)",
+    "  Drag & drop  — Drop a file onto the message log to send",
   ];
   ui.appendMessage("system", lines.join("\n"));
 }
@@ -583,6 +644,41 @@ function init() {
         sendMessage(text);
         ui.clearInput();
       }
+    }
+  });
+
+  // ── File input + attach button wiring ──────────────────────
+  const fileInput = document.createElement("input");
+  fileInput.type = "file";
+  fileInput.style.display = "none";
+  document.body.appendChild(fileInput);
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length > 0) {
+      sendFile(fileInput.files[0]);
+      fileInput.value = "";
+    }
+  });
+
+  els.btnAttach.addEventListener("click", () => {
+    fileInput.click();
+  });
+
+  // ── Drag-and-drop on message log ──────────────────────────
+  els.messageLog.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    els.messageLog.classList.add("drag-over");
+  });
+
+  els.messageLog.addEventListener("dragleave", () => {
+    els.messageLog.classList.remove("drag-over");
+  });
+
+  els.messageLog.addEventListener("drop", (e) => {
+    e.preventDefault();
+    els.messageLog.classList.remove("drag-over");
+    if (state === "chat" && e.dataTransfer.files.length > 0) {
+      sendFile(e.dataTransfer.files[0]);
     }
   });
 

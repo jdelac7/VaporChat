@@ -1,4 +1,4 @@
-import { formatTimestamp, escapeHtml } from "./utils.js";
+import { formatTimestamp, escapeHtml, formatFileSize } from "./utils.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -28,6 +28,7 @@ const els = {
   messageLog:    $("#message-log"),
   chatInput:     $("#chat-input"),
   errorMessage:  $("#error-message"),
+  btnAttach:     $("#btn-attach"),
 };
 
 /**
@@ -154,10 +155,60 @@ export function appendMessage(type, text, codename) {
 }
 
 /**
+ * Append a file message to the log with download link and optional image preview.
+ * @param {"self"|"peer"} type
+ * @param {{ fileName: string, mimeType: string, fileSize: number, data: string }} metadata
+ * @param {string} codename
+ */
+export function appendFileMessage(type, metadata, codename) {
+  const { fileName, mimeType, fileSize, data } = metadata;
+
+  // Convert base64 to Blob and create object URL
+  const byteString = atob(data);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) {
+    bytes[i] = byteString.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: mimeType });
+  const blobUrl = URL.createObjectURL(blob);
+
+  const div = document.createElement("div");
+  div.className = `message msg-${type}`;
+
+  const timestamp = `<span class="msg-timestamp">${escapeHtml(formatTimestamp())}</span>`;
+  const name = `<span class="msg-codename">${escapeHtml(codename)}</span>`;
+  const link = `<a class="file-download" href="${blobUrl}" download="${escapeHtml(fileName)}">${escapeHtml(fileName)}</a>`;
+  const size = `<span class="file-size">(${formatFileSize(fileSize)})</span>`;
+
+  let html = `${timestamp} ${name} &gt; ${link} ${size}`;
+
+  if (mimeType.startsWith("image/")) {
+    html += `<img class="file-preview" src="${blobUrl}" alt="${escapeHtml(fileName)}">`;
+  }
+
+  div.innerHTML = html;
+  div.dataset.blobUrl = blobUrl;
+
+  els.messageLog.appendChild(div);
+  els.messageLog.scrollTop = els.messageLog.scrollHeight;
+}
+
+/**
+ * Revoke all blob URLs in the message log.
+ */
+function revokeBlobUrls() {
+  const items = els.messageLog.querySelectorAll("[data-blob-url]");
+  for (const el of items) {
+    URL.revokeObjectURL(el.dataset.blobUrl);
+  }
+}
+
+/**
  * Enable or disable the chat input.
  */
 export function setInputEnabled(enabled) {
   els.chatInput.disabled = !enabled;
+  els.btnAttach.disabled = !enabled;
   if (enabled) els.chatInput.focus();
 }
 
@@ -203,6 +254,7 @@ export function showError(msg) {
  * Purge all messages from the chat log.
  */
 export function purgeMessages() {
+  revokeBlobUrls();
   els.messageLog.innerHTML = "";
 }
 
@@ -210,6 +262,7 @@ export function purgeMessages() {
  * Clear the message log (user-facing alias for /clear command).
  */
 export function clearMessages() {
+  revokeBlobUrls();
   els.messageLog.innerHTML = "";
 }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-e9TEFAEVD2JaLoeOD7bpCxvYE1PD82/N2FG9KG8Jj0A=' https://unpkg.com https://esm.sh https://cdn.esm.sh; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com wss: https://unpkg.com https://esm.sh https://cdn.esm.sh; img-src 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-e9TEFAEVD2JaLoeOD7bpCxvYE1PD82/N2FG9KG8Jj0A=' https://unpkg.com https://esm.sh https://cdn.esm.sh; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com wss: https://unpkg.com https://esm.sh https://cdn.esm.sh; img-src blob:;">
   <title>VaporChat — Ephemeral Encrypted P2P Chat</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -73,6 +73,7 @@
       </div>
       <div id="message-log" class="message-log"></div>
       <div class="input-area">
+        <button id="btn-attach" class="btn-attach" title="Attach file" disabled>[+]</button>
         <span class="input-prompt">&gt;</span>
         <input id="chat-input" class="input-field" type="text" placeholder="Type a message..." autocomplete="off" spellcheck="false">
       </div>

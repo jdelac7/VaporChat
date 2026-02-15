@@ -57,3 +57,14 @@ export function escapeHtml(str) {
 export function buildShareLink(channelId) {
   return `${window.location.origin}${window.location.pathname}#${channelId}`;
 }
+
+/**
+ * Format a byte count as a human-readable file size.
+ * @param {number} bytes
+ * @returns {string}
+ */
+export function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
