@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-e9TEFAEVD2JaLoeOD7bpCxvYE1PD82/N2FG9KG8Jj0A=' https://unpkg.com https://esm.sh https://cdn.esm.sh; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com wss: https://unpkg.com https://esm.sh https://cdn.esm.sh; img-src 'none';">
+  <title>VaporChat — Ephemeral Encrypted P2P Chat</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script type="importmap">
+  {
+    "imports": {
+      "openpgp": "https://unpkg.com/openpgp@5.11.2/dist/openpgp.min.mjs",
+      "peerjs": "https://esm.sh/peerjs@1.5.4"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ═══ Landing Screen ═══ -->
+    <div id="screen-landing" class="screen active">
+      <pre class="ascii-header">
+ ██╗   ██╗ █████╗ ██████╗  ██████╗ ██████╗  ██████╗██╗  ██╗ █████╗ ████████╗
+ ██║   ██║██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗╚══██╔══╝
+ ██║   ██║███████║██████╔╝██║   ██║██████╔╝██║     ███████║███████║   ██║
+ ╚██╗ ██╔╝██╔══██║██╔═══╝ ██║   ██║██╔══██╗██║     ██╔══██║██╔══██║   ██║
+  ╚████╔╝ ██║  ██║██║     ╚██████╔╝██║  ██║╚██████╗██║  ██║██║  ██║   ██║
+   ╚═══╝  ╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝</pre>
+      <p class="tagline">ephemeral · encrypted · peer-to-peer</p>
+      <ul class="features">
+        <li>No servers — messages travel directly between browsers</li>
+        <li>End-to-end PGP encryption — unique keys per session</li>
+        <li>One-time links — channels burn after first use</li>
+        <li>Zero persistence — nothing survives a closed tab</li>
+      </ul>
+      <button id="btn-create" class="btn-primary">Create Secure Channel</button>
+      <p id="landing-error" class="landing-error"></p>
+    </div>
+
+    <!-- ═══ Waiting Screen ═══ -->
+    <div id="screen-waiting" class="screen">
+      <div>
+        <p class="codename-label">Your Codename</p>
+        <p id="self-codename" class="codename-display"></p>
+      </div>
+      <div class="share-box">
+        <p class="share-label">Share this link with your contact</p>
+        <p id="share-link" class="share-link"></p>
+        <button id="btn-copy" class="btn-copy">[ COPY LINK ]</button>
+      </div>
+      <p class="waiting-indicator">Waiting for connection<span class="waiting-dots"></span></p>
+      <button id="btn-cancel" class="btn-secondary">Cancel</button>
+    </div>
+
+    <!-- ═══ Chat Screen ═══ -->
+    <div id="screen-chat" class="screen">
+      <div class="status-bar">
+        <span id="status-self" class="status-codenames"></span>
+        <span class="status-separator">↔</span>
+        <span id="status-peer" class="status-codenames"></span>
+        <span class="status-encryption">
+          <span id="status-dot" class="status-dot"></span>
+          E2E encrypted
+        </span>
+      </div>
+      <div id="message-log" class="message-log"></div>
+      <div class="input-area">
+        <span class="input-prompt">&gt;</span>
+        <input id="chat-input" class="input-field" type="text" placeholder="Type a message..." autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+
+    <!-- ═══ Destroyed Screen ═══ -->
+    <div id="screen-destroyed" class="screen">
+      <div class="destroyed-icon">⊘</div>
+      <h2 class="destroyed-title">Channel Destroyed</h2>
+      <p class="destroyed-message">
+        All keys have been purged from memory.<br>
+        No messages were stored.<br>
+        No trace remains.
+      </p>
+      <button id="btn-return" class="btn-primary">Return to Landing</button>
+    </div>
+
+    <!-- ═══ Error Screen ═══ -->
+    <div id="screen-error" class="screen">
+      <h2 class="error-title">Channel Unavailable</h2>
+      <p id="error-message" class="error-message"></p>
+      <button id="btn-error-return" class="btn-primary">Return to Landing</button>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

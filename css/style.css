@@ -1,0 +1,477 @@
+/* ── Reset & Base ──────────────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0a0a0a;
+  --bg-surface: #0f0f0f;
+  --green: #00ff41;
+  --green-dim: #00cc33;
+  --green-glow: rgba(0, 255, 65, 0.15);
+  --amber: #ffb000;
+  --amber-dim: #cc8c00;
+  --red: #ff3333;
+  --red-dim: #cc2929;
+  --cyan: #00e5ff;
+  --text: #c0c0c0;
+  --text-dim: #606060;
+  --border: #1a1a1a;
+  --border-bright: #2a2a2a;
+  --font-mono: "IBM Plex Mono", "Fira Code", "Consolas", "Monaco", monospace;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--green);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+}
+
+/* ── Scanline Overlay ─────────────────────────────────────────── */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── App Shell ────────────────────────────────────────────────── */
+#app {
+  max-width: 800px;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+/* ── Screen States ────────────────────────────────────────────── */
+.screen {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* ── Landing Screen ───────────────────────────────────────────── */
+#screen-landing {
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  text-align: center;
+}
+
+.ascii-header {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--green);
+  text-shadow: 0 0 10px var(--green-glow), 0 0 20px var(--green-glow);
+  white-space: pre;
+  user-select: none;
+}
+
+.tagline {
+  color: var(--text-dim);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.features {
+  list-style: none;
+  text-align: left;
+  display: inline-block;
+}
+
+.features li {
+  color: var(--text);
+  font-size: 13px;
+  padding: 0.25rem 0;
+}
+
+.features li::before {
+  content: "› ";
+  color: var(--green-dim);
+}
+
+.btn-primary {
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green-dim);
+  padding: 0.75rem 2rem;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-primary:hover {
+  background: var(--green-glow);
+  box-shadow: 0 0 15px var(--green-glow);
+}
+
+.btn-primary:active {
+  background: rgba(0, 255, 65, 0.25);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-bright);
+  padding: 0.5rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+.landing-error {
+  color: var(--red);
+  font-size: 12px;
+  display: none;
+}
+
+.landing-error.visible {
+  display: block;
+}
+
+/* ── Waiting Screen ───────────────────────────────────────────── */
+#screen-waiting {
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.codename-display {
+  font-size: 16px;
+  color: var(--cyan);
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
+.codename-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 0.25rem;
+}
+
+.share-box {
+  border: 1px solid var(--border-bright);
+  padding: 1rem 1.5rem;
+  background: var(--bg-surface);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.share-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.share-link {
+  font-size: 12px;
+  color: var(--green);
+  word-break: break-all;
+  user-select: all;
+  margin-bottom: 0.75rem;
+}
+
+.btn-copy {
+  background: transparent;
+  color: var(--green-dim);
+  border: 1px solid var(--border-bright);
+  padding: 0.35rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copy:hover {
+  border-color: var(--green-dim);
+}
+
+.btn-copy.copied {
+  color: var(--amber);
+  border-color: var(--amber-dim);
+}
+
+.waiting-indicator {
+  color: var(--amber);
+  font-size: 13px;
+}
+
+.waiting-dots {
+  display: inline-block;
+  animation: pulse-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes pulse-dots {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+}
+
+.waiting-dots::after {
+  content: "";
+  animation: dots 1.5s steps(1, end) infinite;
+}
+
+@keyframes dots {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+}
+
+/* ── Chat Screen ──────────────────────────────────────────────── */
+#screen-chat {
+  gap: 0;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.status-codenames {
+  color: var(--cyan);
+}
+
+.status-separator {
+  color: var(--text-dim);
+}
+
+.status-encryption {
+  color: var(--green-dim);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.status-dot.disconnected {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+}
+
+.message-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 0;
+  min-height: 0;
+  scrollbar-width: none;
+}
+
+.message-log::-webkit-scrollbar {
+  display: none;
+}
+
+.message {
+  padding: 0.15rem 0;
+  animation: fade-in 0.15s ease-out;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-timestamp {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.msg-codename {
+  font-size: 13px;
+}
+
+.msg-self .msg-codename {
+  color: var(--cyan);
+}
+
+.msg-peer .msg-codename {
+  color: var(--amber);
+}
+
+.msg-self .msg-text {
+  color: var(--text);
+}
+
+.msg-peer .msg-text {
+  color: var(--text);
+}
+
+.msg-system {
+  color: var(--amber);
+  font-style: italic;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.msg-error {
+  color: var(--red);
+  font-size: 12px;
+}
+
+.msg-crypto {
+  color: var(--green-dim);
+  font-size: 12px;
+}
+
+.input-area {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding: 0.5rem 0;
+  flex-shrink: 0;
+}
+
+.input-prompt {
+  color: var(--green);
+  margin-right: 0.5rem;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  caret-color: var(--green);
+}
+
+.input-field::placeholder {
+  color: var(--text-dim);
+}
+
+.input-field:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Destroyed Screen ─────────────────────────────────────────── */
+#screen-destroyed {
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.destroyed-icon {
+  font-size: 48px;
+  color: var(--red);
+  line-height: 1;
+}
+
+.destroyed-title {
+  font-size: 20px;
+  color: var(--red);
+  text-shadow: 0 0 10px rgba(255, 51, 51, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.destroyed-message {
+  color: var(--text-dim);
+  font-size: 13px;
+  max-width: 400px;
+  line-height: 1.8;
+}
+
+/* ── Joiner Error Screen ──────────────────────────────────────── */
+#screen-error {
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.error-title {
+  font-size: 18px;
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.error-message {
+  color: var(--text-dim);
+  font-size: 13px;
+  max-width: 400px;
+}
+
+/* ── Utilities ────────────────────────────────────────────────── */
+.hidden {
+  display: none !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  #app {
+    padding: 0.75rem;
+  }
+
+  .ascii-header {
+    font-size: 7px;
+  }
+
+  .status-bar {
+    font-size: 11px;
+    gap: 0.5rem;
+  }
+}
