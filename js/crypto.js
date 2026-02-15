@@ -48,7 +48,7 @@ export async function encryptMessage(text) {
 /**
  * Decrypt and verify a message from the peer.
  * @param {string} armored armored PGP message
- * @returns {Promise<string>} decrypted plaintext
+ * @returns {Promise<{text: string, verified: boolean}>} decrypted plaintext and signature status
  */
 export async function decryptMessage(armored) {
   const message = await openpgp.readMessage({ armoredMessage: armored });
@@ -58,14 +58,17 @@ export async function decryptMessage(armored) {
     verificationKeys: peerPublicKey,
   });
 
-  // Verify signature
+  let verified = false;
   try {
-    await signatures[0].verified;
+    if (signatures.length > 0) {
+      await signatures[0].verified;
+      verified = true;
+    }
   } catch {
-    throw new Error("Signature verification failed");
+    // Signature check failed — message was still decrypted successfully
   }
 
-  return decrypted;
+  return { text: decrypted, verified };
 }
 
 /**

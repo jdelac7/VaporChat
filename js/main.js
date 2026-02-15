@@ -181,8 +181,11 @@ async function handleKeyExchange(data) {
 
 async function handleChatMessage(data) {
   try {
-    const plaintext = await crypto.decryptMessage(data.payload);
-    ui.appendMessage("peer", plaintext, peerCodename);
+    const { text, verified } = await crypto.decryptMessage(data.payload);
+    ui.appendMessage("peer", text, peerCodename);
+    if (!verified) {
+      ui.appendMessage("crypto", "Signature could not be verified for the above message.");
+    }
   } catch (err) {
     ui.appendMessage("error", "Failed to decrypt message: " + err.message);
   }
