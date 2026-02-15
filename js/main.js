@@ -15,7 +15,7 @@ let entryOpen = true;
 let sessionStartTime = null;
 let pendingPings = new Map(); // peerId → timestamp
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB
-const CHUNK_SIZE = 128 * 1024; // 128 KB per chunk (safe for WebRTC JSON channel)
+const CHUNK_SIZE = 16 * 1024; // 16 KB per chunk (PeerJS JSON channel limit)
 let pendingTransfers = new Map(); // transferId → { chunks: Map<index, string>, total, senderPeerId }
 
 // ── State Machine ──────────────────────────────────────────────
