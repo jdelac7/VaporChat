@@ -1,21 +1,21 @@
+import { generateRoomCode, isValidRoomCode } from "./words.js";
+
 /**
- * Generate a cryptographically random channel ID (hex string).
- * @returns {string} 32-character hex string
+ * Generate a channel ID as a 4-word room code.
+ * @returns {string} e.g. "bold-echo-fern-grid"
  */
 export function generateChannelId() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+  return generateRoomCode();
 }
 
 /**
  * Parse channel ID from the current URL hash.
- * Returns null if the hash is missing or not a valid 32-char hex string.
+ * Validates that it's a 4-word room code with all words in the word list.
  * @returns {string|null} channel ID or null if not present/invalid
  */
 export function parseChannelFromHash() {
   const hash = window.location.hash.slice(1);
-  if (/^[0-9a-f]{32}$/.test(hash)) return hash;
+  if (isValidRoomCode(hash)) return hash;
   return null;
 }
 

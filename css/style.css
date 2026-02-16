@@ -150,6 +150,60 @@ body::after {
   border-color: var(--text-dim);
 }
 
+.join-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.join-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-bright);
+}
+
+.join-divider-text {
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.join-section {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.join-input {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 0.6rem 0.75rem;
+  outline: none;
+  caret-color: var(--green);
+  transition: border-color 0.15s ease;
+}
+
+.join-input::placeholder {
+  color: var(--text-dim);
+}
+
+.join-input:focus {
+  border-color: var(--green-dim);
+}
+
+.btn-join {
+  padding: 0.6rem 1.5rem;
+  white-space: nowrap;
+}
+
 .landing-error {
   color: var(--red);
   font-size: 12px;
@@ -213,12 +267,44 @@ body::after {
   margin-bottom: 0.5rem;
 }
 
-.share-link {
-  font-size: 12px;
+.room-code-display {
+  font-size: 22px;
   color: var(--green);
-  word-break: break-all;
+  letter-spacing: 3px;
+  word-spacing: 6px;
+  text-shadow: 0 0 10px var(--green-glow), 0 0 20px var(--green-glow);
   user-select: all;
   margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.share-link-row {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.share-link {
+  font-size: 11px;
+  color: var(--text-dim);
+  word-break: break-all;
+  user-select: all;
+}
+
+.btn-copy-small {
+  font-size: 10px;
+  padding: 0.2rem 0.6rem;
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.btn-copy-small:hover {
+  color: var(--green-dim);
+  border-color: var(--green-dim);
 }
 
 .btn-copy {

@@ -38,6 +38,15 @@
         <li>Zero persistence — nothing survives a closed tab</li>
       </ul>
       <button id="btn-create" class="btn-primary">Create Secure Channel</button>
+      <div class="join-divider">
+        <span class="join-divider-line"></span>
+        <span class="join-divider-text">or join an existing channel</span>
+        <span class="join-divider-line"></span>
+      </div>
+      <div class="join-section">
+        <input id="join-input" class="join-input" type="text" placeholder="enter room code" autocomplete="off" spellcheck="false">
+        <button id="btn-join" class="btn-primary btn-join">Join</button>
+      </div>
       <p id="landing-error" class="landing-error"></p>
       <a href="https://github.com/jdelac7/VaporChat" target="_blank" rel="noopener noreferrer" class="github-link">[ source on github ]</a>
     </div>
@@ -49,9 +58,13 @@
         <p id="self-codename" class="codename-display"></p>
       </div>
       <div class="share-box">
-        <p class="share-label">Share this link with your contacts</p>
-        <p id="share-link" class="share-link"></p>
-        <button id="btn-copy" class="btn-copy">[ COPY LINK ]</button>
+        <p class="share-label">Room Code</p>
+        <p id="room-code" class="room-code-display"></p>
+        <button id="btn-copy-code" class="btn-copy">[ COPY CODE ]</button>
+        <div class="share-link-row">
+          <p id="share-link" class="share-link"></p>
+          <button id="btn-copy-link" class="btn-copy btn-copy-small">[ COPY LINK ]</button>
+        </div>
       </div>
       <p class="waiting-indicator">Waiting for connection<span class="waiting-dots"></span></p>
       <button id="btn-cancel" class="btn-secondary">Cancel</button>

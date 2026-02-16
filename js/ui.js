@@ -12,12 +12,16 @@ const screens = {
 
 const els = {
   btnCreate:     $("#btn-create"),
-  btnCopy:       $("#btn-copy"),
+  btnJoin:       $("#btn-join"),
+  joinInput:     $("#join-input"),
+  btnCopyCode:   $("#btn-copy-code"),
+  btnCopyLink:   $("#btn-copy-link"),
   btnCancel:     $("#btn-cancel"),
   btnReturn:     $("#btn-return"),
   btnErrorReturn:$("#btn-error-return"),
   landingError:  $("#landing-error"),
   selfCodename:  $("#self-codename"),
+  roomCode:      $("#room-code"),
   shareLink:     $("#share-link"),
   statusSelf:    $("#status-self"),
   statusPeerWrap:    $("#status-peer-wrap"),
@@ -52,6 +56,14 @@ export function showSelfCodename(codename) {
 }
 
 /**
+ * Display the room code on the waiting screen (space-separated for readability).
+ * @param {string} channelId - hyphenated room code e.g. "bold-echo-fern-grid"
+ */
+export function showRoomCode(channelId) {
+  els.roomCode.textContent = channelId.replace(/-/g, "  ");
+}
+
+/**
  * Display the shareable link on the waiting screen.
  */
 export function showShareLink(link) {
@@ -59,15 +71,18 @@ export function showShareLink(link) {
 }
 
 /**
- * Copy text to clipboard and flash the copy button.
+ * Copy text to clipboard and flash a given button.
+ * @param {string} text
+ * @param {HTMLElement} btn
+ * @param {string} defaultLabel
  */
-export function copyToClipboard(text) {
+export function copyToClipboard(text, btn, defaultLabel) {
   const onSuccess = () => {
-    els.btnCopy.textContent = "[ COPIED ]";
-    els.btnCopy.classList.add("copied");
+    btn.textContent = "[ COPIED ]";
+    btn.classList.add("copied");
     setTimeout(() => {
-      els.btnCopy.textContent = "[ COPY LINK ]";
-      els.btnCopy.classList.remove("copied");
+      btn.textContent = defaultLabel;
+      btn.classList.remove("copied");
     }, 2000);
   };
 

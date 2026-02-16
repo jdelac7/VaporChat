@@ -1,5 +1,5 @@
 import { generateChannelId, parseChannelFromHash, clearHash, buildShareLink } from "./utils.js";
-import { generateCodename } from "./words.js";
+import { generateCodename, normalizeRoomCode } from "./words.js";
 import * as ui from "./ui.js";
 import * as crypto from "./crypto.js";
 import * as network from "./network.js";
@@ -54,6 +54,7 @@ async function createChannel() {
 
     // Show waiting screen
     ui.showSelfCodename(selfCodename);
+    ui.showRoomCode(channelId);
     ui.showShareLink(shareLink);
     transition("waiting");
 
@@ -627,8 +628,33 @@ function init() {
 
   els.btnCreate.addEventListener("click", createChannel);
 
-  els.btnCopy.addEventListener("click", () => {
-    if (shareLink) ui.copyToClipboard(shareLink);
+  function handleJoinInput() {
+    ui.hideLandingError();
+    const raw = els.joinInput.value;
+    const normalized = normalizeRoomCode(raw);
+    if (!normalized) {
+      ui.showLandingError("Invalid room code. Enter 4 words (e.g. bold echo fern grid).");
+      return;
+    }
+    els.joinInput.value = "";
+    joinChannel(normalized);
+  }
+
+  els.btnJoin.addEventListener("click", handleJoinInput);
+
+  els.joinInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleJoinInput();
+    }
+  });
+
+  els.btnCopyCode.addEventListener("click", () => {
+    if (channelId) ui.copyToClipboard(channelId.replace(/-/g, " "), els.btnCopyCode, "[ COPY CODE ]");
+  });
+
+  els.btnCopyLink.addEventListener("click", () => {
+    if (shareLink) ui.copyToClipboard(shareLink, els.btnCopyLink, "[ COPY LINK ]");
   });
 
   els.btnCancel.addEventListener("click", cancelWaiting);
