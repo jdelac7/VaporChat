@@ -162,10 +162,12 @@ export function setEntryClickable(clickable) {
  * @param {"self"|"peer"|"system"|"error"|"crypto"} type
  * @param {string} text
  * @param {string} [codename]
+ * @param {{ unverified?: boolean }} [options]
  */
-export function appendMessage(type, text, codename) {
+export function appendMessage(type, text, codename, options) {
   const div = document.createElement("div");
   div.className = `message msg-${type}`;
+  if (options && options.unverified) div.classList.add("msg-unverified");
 
   if (type === "self" || type === "peer") {
     div.innerHTML =
@@ -187,8 +189,9 @@ export function appendMessage(type, text, codename) {
  * @param {"self"|"peer"} type
  * @param {{ fileName: string, mimeType: string, fileSize: number, data: string }} metadata
  * @param {string} codename
+ * @param {{ unverified?: boolean }} [options]
  */
-export function appendFileMessage(type, metadata, codename) {
+export function appendFileMessage(type, metadata, codename, options) {
   const { fileName, mimeType, fileSize, data } = metadata;
 
   // Convert base64 to Blob and create object URL
@@ -202,6 +205,7 @@ export function appendFileMessage(type, metadata, codename) {
 
   const div = document.createElement("div");
   div.className = `message msg-${type}`;
+  if (options && options.unverified) div.classList.add("msg-unverified");
 
   const timestamp = `<span class="msg-timestamp">${escapeHtml(formatTimestamp())}</span>`;
   const name = `<span class="msg-codename">${escapeHtml(codename)}</span>`;

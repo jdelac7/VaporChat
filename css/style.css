@@ -554,6 +554,12 @@ body::after {
   font-size: 12px;
 }
 
+.msg-unverified {
+  border-left: 3px solid var(--red);
+  padding-left: 0.5rem;
+  background: rgba(255, 51, 51, 0.06);
+}
+
 .input-area {
   display: flex;
   align-items: center;

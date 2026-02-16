@@ -22,6 +22,11 @@ function transition(newState) {
   ui.showScreen(newState);
 }
 
+// ── Helper: check if a peer is the channel creator ────────────
+function isFromCreator(peerId) {
+  return peerId === "vaporchat-" + channelId;
+}
+
 // ── Helper: get all peer codenames ─────────────────────────────
 function getPeerNames() {
   return Array.from(peers.values()).map(p => p.codename);
@@ -142,6 +147,7 @@ async function onData(data, peerId) {
       await handleFileMessage(data, peerId);
       break;
     case "close":
+      if (!isFromCreator(peerId)) break;
       handleRemoteClose(peerId);
       break;
     case "clear":
@@ -155,18 +161,23 @@ async function onData(data, peerId) {
       handlePong(data, peerId);
       break;
     case "peer_list":
+      if (!isFromCreator(peerId)) break;
       await handlePeerList(data);
       break;
     case "peer_joined":
+      if (!isFromCreator(peerId)) break;
       await handlePeerJoined(data);
       break;
     case "peer_left":
+      if (!isFromCreator(peerId)) break;
       handlePeerLeft(data);
       break;
     case "entry_closed":
+      if (!isFromCreator(peerId)) break;
       handleEntryClosed();
       break;
     case "entry_opened":
+      if (!isFromCreator(peerId)) break;
       handleEntryOpened();
       break;
     case "leave":
@@ -247,9 +258,9 @@ async function handleChatMessage(data, peerId) {
     const { text, verified } = await crypto.decryptMessage(data.payload, senderPeerId);
     const senderInfo = senderPeerId ? peers.get(senderPeerId) : null;
     const senderName = senderInfo ? senderInfo.codename : "Unknown";
-    ui.appendMessage("peer", text, senderName);
+    ui.appendMessage("peer", text, senderName, { unverified: !verified });
     if (!verified) {
-      ui.appendMessage("crypto", "Signature could not be verified for the above message.");
+      ui.appendMessage("error", "WARNING: Signature verification failed for the above message. It may have been tampered with or sent by an impersonator.");
     }
   } catch (err) {
     ui.appendMessage("error", "Failed to decrypt message: " + err.message);
@@ -299,11 +310,26 @@ async function handleFileMessage(data, peerId) {
     const senderPeerId = peerId || data.senderPeerId;
     const { text, verified } = await crypto.decryptMessage(data.payload, senderPeerId);
     const metadata = JSON.parse(text);
+
+    // Validate file metadata
+    if (typeof metadata.data !== "string" || metadata.data.length === 0) {
+      ui.appendMessage("error", "Rejected file: missing or invalid file data.");
+      return;
+    }
+    if (metadata.data.length > MAX_FILE_SIZE * 1.37) {
+      ui.appendMessage("error", "Rejected file: exceeds maximum allowed size (2 MB).");
+      return;
+    }
+    if (typeof metadata.fileName !== "string" || metadata.fileName.length === 0 || metadata.fileName.length > 255) {
+      ui.appendMessage("error", "Rejected file: invalid file name.");
+      return;
+    }
+
     const senderInfo = senderPeerId ? peers.get(senderPeerId) : null;
     const senderName = senderInfo ? senderInfo.codename : "Unknown";
-    ui.appendFileMessage("peer", metadata, senderName);
+    ui.appendFileMessage("peer", metadata, senderName, { unverified: !verified });
     if (!verified) {
-      ui.appendMessage("crypto", "Signature could not be verified for the above file.");
+      ui.appendMessage("error", "WARNING: Signature verification failed for the above file. It may have been tampered with or sent by an impersonator.");
     }
   } catch (err) {
     ui.appendMessage("error", "Failed to decrypt file: " + err.message);
