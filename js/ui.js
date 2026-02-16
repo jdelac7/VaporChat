@@ -13,7 +13,12 @@ const screens = {
 const els = {
   btnCreate:     $("#btn-create"),
   btnJoin:       $("#btn-join"),
-  joinInput:     $("#join-input"),
+  joinWords: [
+    $("#join-word-1"),
+    $("#join-word-2"),
+    $("#join-word-3"),
+    $("#join-word-4"),
+  ],
   btnCopyCode:   $("#btn-copy-code"),
   btnCopyLink:   $("#btn-copy-link"),
   btnCancel:     $("#btn-cancel"),
@@ -142,6 +147,14 @@ export function setConnectionStatus(connected) {
 export function setEntryStatus(open) {
   els.statusEntry.textContent = open ? "entry: open" : "entry: closed";
   els.statusEntry.classList.toggle("entry-closed", !open);
+}
+
+/**
+ * Mark the entry status indicator as clickable (creator only).
+ * @param {boolean} clickable
+ */
+export function setEntryClickable(clickable) {
+  els.statusEntry.classList.toggle("clickable", clickable);
 }
 
 /**
@@ -279,6 +292,20 @@ export function purgeMessages() {
 export function clearMessages() {
   revokeBlobUrls();
   els.messageLog.innerHTML = "";
+}
+
+/**
+ * Read all 4 join inputs and return as a single space-separated string.
+ */
+export function getJoinCode() {
+  return els.joinWords.map(el => el.value.trim()).join(" ");
+}
+
+/**
+ * Clear all 4 join inputs.
+ */
+export function clearJoinInputs() {
+  els.joinWords.forEach(el => { el.value = ""; });
 }
 
 /**

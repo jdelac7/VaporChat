@@ -224,6 +224,7 @@ async function handleKeyExchange(data, peerId) {
       refreshStatusBar();
       ui.setConnectionStatus(true);
       transition("chat");
+      if (isCreator) ui.setEntryClickable(true);
       ui.appendMessage("crypto", "Key exchange complete. E2E encryption active.");
       ui.setInputEnabled(true);
       window.addEventListener("beforeunload", beforeUnloadHandler);
@@ -630,23 +631,52 @@ function init() {
 
   function handleJoinInput() {
     ui.hideLandingError();
-    const raw = els.joinInput.value;
+    const raw = ui.getJoinCode();
     const normalized = normalizeRoomCode(raw);
     if (!normalized) {
       ui.showLandingError("Invalid room code. Enter 4 words (e.g. bold echo fern grid).");
       return;
     }
-    els.joinInput.value = "";
+    ui.clearJoinInputs();
     joinChannel(normalized);
   }
 
   els.btnJoin.addEventListener("click", handleJoinInput);
 
-  els.joinInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+  // Wire up 4-box join inputs: paste spreading, auto-advance, and Enter to join
+  els.joinWords.forEach((input, idx) => {
+    // Paste handler: spread pasted words across boxes
+    input.addEventListener("paste", (e) => {
       e.preventDefault();
-      handleJoinInput();
-    }
+      const text = (e.clipboardData || window.clipboardData).getData("text");
+      const words = text.trim().split(/[\s\-]+/).filter(Boolean);
+      for (let i = 0; i < words.length && idx + i < 4; i++) {
+        els.joinWords[idx + i].value = words[i];
+      }
+      // Focus the next empty box, or the last filled one
+      const nextEmpty = els.joinWords.findIndex(el => !el.value.trim());
+      if (nextEmpty !== -1) {
+        els.joinWords[nextEmpty].focus();
+      } else {
+        els.joinWords[3].focus();
+      }
+    });
+
+    // Auto-advance on space or hyphen
+    input.addEventListener("keydown", (e) => {
+      if (e.key === " " || e.key === "-") {
+        e.preventDefault();
+        if (idx < 3) els.joinWords[idx + 1].focus();
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleJoinInput();
+      }
+      // Backspace on empty box goes back
+      if (e.key === "Backspace" && !input.value && idx > 0) {
+        els.joinWords[idx - 1].focus();
+      }
+    });
   });
 
   els.btnCopyCode.addEventListener("click", () => {
@@ -707,6 +737,23 @@ function init() {
     if (state === "chat" && e.dataTransfer.files.length > 0) {
       sendFile(e.dataTransfer.files[0]);
     }
+  });
+
+  // ── Entry toggle via status bar click ───────────────────────
+  let entryToggleCooldown = false;
+  els.statusEntry.addEventListener("click", () => {
+    if (!isCreator || entryToggleCooldown) return;
+    if (entryOpen) {
+      cmdCloseEntry();
+    } else {
+      cmdOpenEntry();
+    }
+    entryToggleCooldown = true;
+    els.statusEntry.classList.add("cooldown");
+    setTimeout(() => {
+      entryToggleCooldown = false;
+      els.statusEntry.classList.remove("cooldown");
+    }, 1500);
   });
 
   // Check for join link in URL hash
