@@ -1,4 +1,4 @@
-import { generateRoomCode, isValidRoomCode } from "./words.js";
+import { generateRoomCode } from "./words.js";
 
 /**
  * Generate a channel ID as a 4-word room code.
@@ -10,13 +10,14 @@ export function generateChannelId() {
 
 /**
  * Parse channel ID from the current URL hash.
- * Validates that it's a 4-word room code with all words in the word list.
+ * Accepts any 4-word hyphenated code.
  * @returns {string|null} channel ID or null if not present/invalid
  */
 export function parseChannelFromHash() {
   const hash = window.location.hash.slice(1);
-  if (isValidRoomCode(hash)) return hash;
-  return null;
+  if (!hash) return null;
+  const parts = hash.split("-");
+  return parts.length === 4 && parts.every(w => w.length > 0) ? hash : null;
 }
 
 /**

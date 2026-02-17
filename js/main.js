@@ -1,5 +1,5 @@
 import { generateChannelId, parseChannelFromHash, clearHash, buildShareLink } from "./utils.js";
-import { generateCodename, normalizeRoomCode } from "./words.js";
+import { generateCodename } from "./words.js";
 import * as ui from "./ui.js";
 import * as crypto from "./crypto.js";
 import * as network from "./network.js";
@@ -666,12 +666,12 @@ function init() {
       createChannel();
     } else {
       const raw = ui.getCreateCode();
-      const normalized = normalizeRoomCode(raw);
-      if (!normalized) {
-        ui.showLandingError("Invalid words. Enter 4 words from the word list.");
+      const words = raw.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (words.length !== 4) {
+        ui.showLandingError("Enter exactly 4 words.");
         return;
       }
-      createChannel(normalized);
+      createChannel(words.join("-"));
     }
   });
 
@@ -691,13 +691,13 @@ function init() {
   function handleJoinInput() {
     ui.hideLandingError();
     const raw = ui.getJoinCode();
-    const normalized = normalizeRoomCode(raw);
-    if (!normalized) {
-      ui.showLandingError("Invalid room code. Enter 4 words (e.g. bold echo fern grid).");
+    const words = raw.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length !== 4) {
+      ui.showLandingError("Enter exactly 4 words (e.g. bold echo fern grid).");
       return;
     }
     ui.clearJoinInputs();
-    joinChannel(normalized);
+    joinChannel(words.join("-"));
   }
 
   els.btnJoin.addEventListener("click", handleJoinInput);
