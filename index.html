@@ -39,20 +39,39 @@
         <li>Zero persistence — nothing survives a closed tab</li>
         <li>P2P exposes your IP to peers — use a VPN for anonymity</li>
       </ul>
-      <button id="btn-create" class="btn-primary">Create Secure Channel</button>
-      <div class="join-divider">
-        <span class="join-divider-line"></span>
-        <span class="join-divider-text">or join an existing channel</span>
-        <span class="join-divider-line"></span>
+      <div id="landing-buttons" class="landing-buttons">
+        <button id="btn-create" class="btn-primary">Create Channel</button>
+        <button id="btn-join-show" class="btn-primary">Join Channel</button>
       </div>
-      <div class="join-section">
+
+      <div id="panel-create" class="landing-panel hidden">
+        <label class="random-toggle">
+          <input type="checkbox" id="chk-random" checked>
+          <span>Generate random channel words</span>
+        </label>
+        <div id="create-words" class="join-inputs create-inputs-disabled">
+          <input class="join-word create-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20" disabled>
+          <input class="join-word create-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20" disabled>
+          <input class="join-word create-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20" disabled>
+          <input class="join-word create-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20" disabled>
+        </div>
+        <div class="panel-actions">
+          <button id="btn-back-create" class="btn-secondary">Back</button>
+          <button id="btn-create-confirm" class="btn-primary">Create Channel</button>
+        </div>
+      </div>
+
+      <div id="panel-join" class="landing-panel hidden">
         <div class="join-inputs">
           <input id="join-word-1" class="join-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20">
           <input id="join-word-2" class="join-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20">
           <input id="join-word-3" class="join-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20">
           <input id="join-word-4" class="join-word" type="text" placeholder="word" autocomplete="off" spellcheck="false" maxlength="20">
         </div>
-        <button id="btn-join" class="btn-primary btn-join">Join</button>
+        <div class="panel-actions">
+          <button id="btn-back-join" class="btn-secondary">Back</button>
+          <button id="btn-join" class="btn-primary">Join Channel</button>
+        </div>
       </div>
       <p id="landing-error" class="landing-error"></p>
       <a href="https://github.com/jdelac7/VaporChat" target="_blank" rel="noopener noreferrer" class="github-link">[ source on github ]</a>

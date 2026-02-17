@@ -150,34 +150,66 @@ body::after {
   border-color: var(--text-dim);
 }
 
-.join-divider {
+.landing-buttons {
   display: flex;
-  align-items: center;
   gap: 1rem;
-  width: 100%;
-  max-width: 400px;
 }
 
-.join-divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--border-bright);
-}
-
-.join-divider-text {
-  color: var(--text-dim);
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-}
-
-.join-section {
+.landing-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   width: 100%;
   max-width: 460px;
+}
+
+.random-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+  user-select: none;
+}
+
+.random-toggle input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--green-dim);
+  background: var(--bg-surface);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.random-toggle input[type="checkbox"]:checked {
+  background: var(--green-dim);
+}
+
+.random-toggle input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.create-inputs-disabled .join-word {
+  opacity: 0.3;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .join-inputs {
@@ -207,11 +239,6 @@ body::after {
 
 .join-word:focus {
   border-color: var(--green-dim);
-}
-
-.btn-join {
-  padding: 0.6rem 1.5rem;
-  white-space: nowrap;
 }
 
 .landing-error {

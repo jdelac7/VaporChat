@@ -37,17 +37,17 @@ function refreshStatusBar() {
 }
 
 // ── Creator Flow ───────────────────────────────────────────────
-async function createChannel() {
+async function createChannel(customChannelId) {
   try {
     ui.hideLandingError();
     const els = ui.getElements();
-    els.btnCreate.disabled = true;
-    els.btnCreate.textContent = "GENERATING KEYS...";
+    els.btnCreateConfirm.disabled = true;
+    els.btnCreateConfirm.textContent = "GENERATING KEYS...";
 
-    // Generate everything in parallel
-    channelId = generateChannelId();
+    // Use custom words or generate random
+    channelId = customChannelId || generateChannelId();
     selfCodename = generateCodename();
-    const [pubKey] = await Promise.all([crypto.generateKeypair()]);
+    await crypto.generateKeypair();
 
     shareLink = buildShareLink(channelId);
     isCreator = true;
@@ -63,12 +63,12 @@ async function createChannel() {
     ui.showShareLink(shareLink);
     transition("waiting");
 
-    els.btnCreate.disabled = false;
-    els.btnCreate.textContent = "CREATE SECURE CHANNEL";
+    els.btnCreateConfirm.disabled = false;
+    els.btnCreateConfirm.textContent = "CREATE CHANNEL";
   } catch (err) {
     const els = ui.getElements();
-    els.btnCreate.disabled = false;
-    els.btnCreate.textContent = "CREATE SECURE CHANNEL";
+    els.btnCreateConfirm.disabled = false;
+    els.btnCreateConfirm.textContent = "CREATE CHANNEL";
     ui.showLandingError("Failed to create channel: " + err.message);
   }
 }
@@ -83,10 +83,10 @@ async function joinChannel(joinChannelId) {
     selfCodename = generateCodename();
     isCreator = false;
 
-    // Show a brief loading state on landing
+    // Show a brief loading state
     const els = ui.getElements();
-    els.btnCreate.disabled = true;
-    els.btnCreate.textContent = "CONNECTING...";
+    els.btnJoin.disabled = true;
+    els.btnJoin.textContent = "CONNECTING...";
 
     await crypto.generateKeypair();
 
@@ -94,12 +94,12 @@ async function joinChannel(joinChannelId) {
 
     await network.joinChannel(channelId);
 
-    els.btnCreate.disabled = false;
-    els.btnCreate.textContent = "CREATE SECURE CHANNEL";
+    els.btnJoin.disabled = false;
+    els.btnJoin.textContent = "JOIN CHANNEL";
   } catch (err) {
     const els = ui.getElements();
-    els.btnCreate.disabled = false;
-    els.btnCreate.textContent = "CREATE SECURE CHANNEL";
+    els.btnJoin.disabled = false;
+    els.btnJoin.textContent = "JOIN CHANNEL";
 
     let msg;
     if (err.type === "peer-unavailable") {
@@ -653,8 +653,41 @@ function beforeUnloadHandler(e) {
 function init() {
   const els = ui.getElements();
 
-  els.btnCreate.addEventListener("click", createChannel);
+  // ── Landing panel navigation ─────────────────────────────────
+  els.btnCreate.addEventListener("click", () => ui.showCreatePanel());
+  els.btnJoinShow.addEventListener("click", () => ui.showJoinPanel());
+  els.btnBackCreate.addEventListener("click", () => ui.showLandingButtons());
+  els.btnBackJoin.addEventListener("click", () => ui.showLandingButtons());
 
+  // ── Create channel confirm ─────────────────────────────────
+  els.btnCreateConfirm.addEventListener("click", () => {
+    ui.hideLandingError();
+    if (els.chkRandom.checked) {
+      createChannel();
+    } else {
+      const raw = ui.getCreateCode();
+      const normalized = normalizeRoomCode(raw);
+      if (!normalized) {
+        ui.showLandingError("Invalid words. Enter 4 words from the word list.");
+        return;
+      }
+      createChannel(normalized);
+    }
+  });
+
+  // ── Random toggle for create panel ─────────────────────────
+  els.chkRandom.addEventListener("change", () => {
+    const random = els.chkRandom.checked;
+    els.createWords.forEach(el => { el.disabled = random; });
+    els.createWordsWrap.classList.toggle("create-inputs-disabled", random);
+    if (random) {
+      els.createWords.forEach(el => { el.value = ""; });
+    } else {
+      els.createWords[0].focus();
+    }
+  });
+
+  // ── Join channel handler ───────────────────────────────────
   function handleJoinInput() {
     ui.hideLandingError();
     const raw = ui.getJoinCode();
@@ -669,41 +702,42 @@ function init() {
 
   els.btnJoin.addEventListener("click", handleJoinInput);
 
-  // Wire up 4-box join inputs: paste spreading, auto-advance, and Enter to join
-  els.joinWords.forEach((input, idx) => {
-    // Paste handler: spread pasted words across boxes
-    input.addEventListener("paste", (e) => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData("text");
-      const words = text.trim().split(/[\s\-]+/).filter(Boolean);
-      for (let i = 0; i < words.length && idx + i < 4; i++) {
-        els.joinWords[idx + i].value = words[i];
-      }
-      // Focus the next empty box, or the last filled one
-      const nextEmpty = els.joinWords.findIndex(el => !el.value.trim());
-      if (nextEmpty !== -1) {
-        els.joinWords[nextEmpty].focus();
-      } else {
-        els.joinWords[3].focus();
-      }
-    });
+  // ── Wire up word inputs: paste spreading, auto-advance ─────
+  function wireWordInputs(inputs, onEnter) {
+    inputs.forEach((input, idx) => {
+      input.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData("text");
+        const words = text.trim().split(/[\s\-]+/).filter(Boolean);
+        for (let i = 0; i < words.length && idx + i < 4; i++) {
+          inputs[idx + i].value = words[i];
+        }
+        const nextEmpty = inputs.findIndex(el => !el.value.trim());
+        if (nextEmpty !== -1) {
+          inputs[nextEmpty].focus();
+        } else {
+          inputs[3].focus();
+        }
+      });
 
-    // Auto-advance on space or hyphen
-    input.addEventListener("keydown", (e) => {
-      if (e.key === " " || e.key === "-") {
-        e.preventDefault();
-        if (idx < 3) els.joinWords[idx + 1].focus();
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleJoinInput();
-      }
-      // Backspace on empty box goes back
-      if (e.key === "Backspace" && !input.value && idx > 0) {
-        els.joinWords[idx - 1].focus();
-      }
+      input.addEventListener("keydown", (e) => {
+        if (e.key === " " || e.key === "-") {
+          e.preventDefault();
+          if (idx < 3) inputs[idx + 1].focus();
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onEnter();
+        }
+        if (e.key === "Backspace" && !input.value && idx > 0) {
+          inputs[idx - 1].focus();
+        }
+      });
     });
-  });
+  }
+
+  wireWordInputs(els.joinWords, handleJoinInput);
+  wireWordInputs(els.createWords, () => els.btnCreateConfirm.click());
 
   els.btnCopyCode.addEventListener("click", () => {
     if (channelId) ui.copyToClipboard(channelId.replace(/-/g, " "), els.btnCopyCode, "[ COPY CODE ]");
@@ -785,6 +819,7 @@ function init() {
   // Check for join link in URL hash
   const joinId = parseChannelFromHash();
   if (joinId) {
+    ui.showJoinPanel();
     joinChannel(joinId);
   }
 
@@ -792,6 +827,7 @@ function init() {
   window.addEventListener("hashchange", () => {
     const id = parseChannelFromHash();
     if (id && state === "landing") {
+      ui.showJoinPanel();
       joinChannel(id);
     }
   });

@@ -12,7 +12,17 @@ const screens = {
 
 const els = {
   btnCreate:     $("#btn-create"),
+  btnJoinShow:   $("#btn-join-show"),
   btnJoin:       $("#btn-join"),
+  btnCreateConfirm: $("#btn-create-confirm"),
+  btnBackCreate: $("#btn-back-create"),
+  btnBackJoin:   $("#btn-back-join"),
+  chkRandom:     $("#chk-random"),
+  landingButtons: $("#landing-buttons"),
+  panelCreate:   $("#panel-create"),
+  panelJoin:     $("#panel-join"),
+  createWords:   Array.from(document.querySelectorAll(".create-word")),
+  createWordsWrap: $("#create-words"),
   joinWords: [
     $("#join-word-1"),
     $("#join-word-2"),
@@ -42,6 +52,7 @@ const els = {
 
 /**
  * Switch to a named screen. Hides all others.
+ * Reset landing panels when returning to landing.
  * @param {"landing"|"waiting"|"chat"|"destroyed"|"error"} name
  */
 export function showScreen(name) {
@@ -51,6 +62,56 @@ export function showScreen(name) {
   if (name === "chat") {
     els.chatInput.focus();
   }
+  if (name === "landing") {
+    showLandingButtons();
+  }
+}
+
+/**
+ * Show the main landing buttons, hide panels.
+ */
+export function showLandingButtons() {
+  els.landingButtons.classList.remove("hidden");
+  els.panelCreate.classList.add("hidden");
+  els.panelJoin.classList.add("hidden");
+  hideLandingError();
+  clearJoinInputs();
+  clearCreateInputs();
+}
+
+/**
+ * Show the create channel panel, hide main buttons.
+ */
+export function showCreatePanel() {
+  els.landingButtons.classList.add("hidden");
+  els.panelJoin.classList.add("hidden");
+  els.panelCreate.classList.remove("hidden");
+  hideLandingError();
+}
+
+/**
+ * Show the join channel panel, hide main buttons.
+ */
+export function showJoinPanel() {
+  els.landingButtons.classList.add("hidden");
+  els.panelCreate.classList.add("hidden");
+  els.panelJoin.classList.remove("hidden");
+  hideLandingError();
+  els.joinWords[0].focus();
+}
+
+/**
+ * Read all 4 create word inputs as a space-separated string.
+ */
+export function getCreateCode() {
+  return els.createWords.map(el => el.value.trim()).join(" ");
+}
+
+/**
+ * Clear all 4 create word inputs.
+ */
+export function clearCreateInputs() {
+  els.createWords.forEach(el => { el.value = ""; });
 }
 
 /**
